@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Individual Bookmark",
+  "version": "1.0.1",
+  "icons": {
+    "128": "images/icon-128.png"
+  },
+  "permissions": [
+    "bookmarks",
+    "sidePanel",
+    "tabs",
+    "storage"
+  ],
+  "action": {},
+  "background": {
+    "service_worker": "background.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  }
+}
