@@ -1,26 +1,21 @@
 <script setup lang="ts">
-import {computed, onMounted} from "vue";
+import { computed, onMounted } from "vue";
 import Menu from "./components/Menu.vue"
-import {LinkItem} from "./store/link-item";
-import {LinkStore} from "./store/link-store";
-import { StoreManager } from "./store/store-manager";
+import { LinkItem } from "./store/link-item";
+import { LinkRepository } from "./store/link-repository";
+import { LinkDB } from "./store/link-db";
 
-
-const linkStore = new LinkStore();
 
 onMounted(async () => {
-  await linkStore.init();
-  linkStore.enableAutoRefresh();
+  LinkRepository.refresh();
 });
 
 const deleteLink = async (link: LinkItem) => {
-  await linkStore.deleteLink(link);
-  await StoreManager.init();
-  await StoreManager.syncFromStorage();
+  await LinkDB.delete(link)
 }
 
 const domainLinks = computed(() => {
-  const groupLinks = groupBy(linkStore.allLinks.value, (link: LinkItem) => link.hostname);
+  const groupLinks = groupBy(LinkRepository.getAllLinks().value, (link: LinkItem) => link.hostname);
   return Object.values(groupLinks);
 });
 
@@ -36,10 +31,7 @@ const groupBy = <T>(array: readonly T[], prop: (v: T) => string) => {
 
 <template>
   <div class="container is-widescreen has-background-dark" style="height: 100vh">
-    <Menu
-        :domainLinks="domainLinks"
-        @delete="deleteLink"
-    ></Menu>
+    <Menu :domainLinks="domainLinks" @delete="deleteLink"></Menu>
   </div>
 </template>
 
@@ -50,5 +42,4 @@ const groupBy = <T>(array: readonly T[], prop: (v: T) => string) => {
 ::-webkit-scrollbar {
   display: none;
 }
-
 </style>

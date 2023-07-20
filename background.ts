@@ -1,14 +1,20 @@
-import {LinkItem} from "./src/store/link-item";
-import {LinkStore} from "./src/store/link-store";
-import {StoreManager} from "./src/store/store-manager";
+import { BookmarkStore } from "./src/store/bookmark-store";
+import { LinkItem } from "./src/store/link-item";
+import { LinkDB } from "./src/store/link-db";
 
 
 // インストール時
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('start onInstalled');
-  await StoreManager.init();
-  await StoreManager.syncFromBookmark();
+  await BookmarkStore.syncToDB();
+  LinkDB.addOnChanged(() => BookmarkStore.syncFromDB());
   console.log('end onInstalled');
+});
+
+// 起動時
+chrome.runtime.onStartup.addListener(() => {
+  console.log('onStartup');
+  LinkDB.addOnChanged(() => BookmarkStore.syncFromDB());
 });
 
 // 右上ボタン
@@ -28,26 +34,22 @@ const clickButton = async (title: string, url: string) => {
     hostname: new URL(url).hostname,
     index: 0,
   };
-  const linkStore = new LinkStore();
-  await linkStore.init();
-  await linkStore.add(link);
-  await StoreManager.syncFromStorage();
+  await LinkDB.add(link);
 }
 
 // ページ遷移時
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  console.log('start onUpdated');
   if (changeInfo.status !== 'complete') {
     return;
   }
+  console.log('start onUpdated');
   const url = tab.url ? tab.url : '';
-  const linkStore = new LinkStore();
-  const link = linkStore.get(url);
+  const link = await LinkDB.get(url);
 
-  if (link === null) {
-    await chrome.action.setBadgeText({text: '', tabId});
+  if (link === undefined) {
+    await chrome.action.setBadgeText({ text: '', tabId });
   } else {
-    await chrome.action.setBadgeText({text: '○', tabId});
+    await chrome.action.setBadgeText({ text: '○', tabId });
   }
   console.log('end onUpdated');
 });
