@@ -7,15 +7,16 @@ import { LinkDB } from "./src/store/link-db";
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('start onInstalled');
   await BookmarkStore.syncToDB();
-  LinkDB.addOnChanged(() => BookmarkStore.syncFromDB());
   console.log('end onInstalled');
 });
 
 // 起動時
-chrome.runtime.onStartup.addListener(() => {
-  console.log('onStartup');
+const onStart = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  console.log('on start');
   LinkDB.addOnChanged(() => BookmarkStore.syncFromDB());
-});
+}
+onStart();
 
 // 右上ボタン
 chrome.action.onClicked.addListener(async () => {
@@ -45,11 +46,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   console.log('start onUpdated');
   const url = tab.url ? tab.url : '';
   const link = await LinkDB.get(url);
-
-  if (link === undefined) {
-    await chrome.action.setBadgeText({ text: '', tabId });
-  } else {
-    await chrome.action.setBadgeText({ text: '○', tabId });
-  }
+  const badgeText = link === undefined ? '' : '✓';
+  await chrome.action.setBadgeText({ text: badgeText, tabId });
   console.log('end onUpdated');
 });

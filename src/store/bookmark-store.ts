@@ -9,6 +9,31 @@ export class BookmarkStore {
     private static readonly ROOT_DIR_NAME = 'Individual Bookmark';
     private static readonly OTHER_BOOKMARK_ID = 2;
 
+    private static async add(rootDirId: number, linkItem: LinkItem): Promise<BookmarkTreeNode> {
+        const hostnameDirId = await this.getDirId(rootDirId, linkItem.hostname);
+
+        return chrome.bookmarks.create({
+            title: linkItem.title,
+            url: linkItem.url,
+            parentId: String(hostnameDirId),
+        });
+    }
+
+    private static async getAll(rootDirId: number): Promise<LinkItem[]> {
+        const dirs = await this.getAllBookmark(String(rootDirId));
+        const nestItems = await Promise.all(dirs.map(dir => this.getAllBookmark(dir.id)));
+        const items = nestItems.flat();
+        return items.map(this.toLinkItem);
+    }
+
+    private static async getAllBookmark(parentDirId: string): Promise<BookmarkTreeNode[]> {
+        return await chrome.bookmarks.getChildren(parentDirId);
+    }
+
+    private static async deleteAll(rootDirId: number) {
+        await chrome.bookmarks.removeTree(String(rootDirId));
+    }
+    
     private static async getDirId(parentDirId: number, dirName: string) {
         const dirs = await chrome.bookmarks.getChildren(String(parentDirId));
 
@@ -28,31 +53,6 @@ export class BookmarkStore {
         });
     }
 
-    private static async deleteAll(root_dir_id: number) {
-        await chrome.bookmarks.removeTree(String(root_dir_id));
-    }
-
-    private static async add(root_dir_id: number, linkItem: LinkItem): Promise<BookmarkTreeNode> {
-        const hostnameDirId = await BookmarkStore.getDirId(root_dir_id, linkItem.hostname);
-
-        return chrome.bookmarks.create({
-            title: linkItem.title,
-            url: linkItem.url,
-            parentId: String(hostnameDirId),
-        });
-    }
-
-    private static async getAllLinks(root_dir_id: number): Promise<LinkItem[]> {
-        const dirs = await this.getAllBookmark(String(root_dir_id));
-
-        console.log(dirs);
-        const nestItems = await Promise.all(dirs.map(dir => this.getAllBookmark(dir.id)));
-        console.log(nestItems);
-
-        const items = nestItems.flat();
-        return items.map(this.toLinkItem);
-    }
-
     private static toLinkItem(bookmark: BookmarkTreeNode): LinkItem {
         const url = bookmark.url as string;
         // todo index
@@ -64,31 +64,22 @@ export class BookmarkStore {
         }
     }
 
-    private static async getAllBookmark(parentDirId: string): Promise<BookmarkTreeNode[]> {
-        console.log(parentDirId);
-
-        return await chrome.bookmarks.getChildren(parentDirId);
-    }
-
     public static async syncFromDB() {
-        console.log('syncFromDB');
-        const root_dir_id = await this.getDirId(BookmarkStore.OTHER_BOOKMARK_ID, BookmarkStore.ROOT_DIR_NAME);
-        this.deleteAll(root_dir_id);
+        const rootDirId = await this.getDirId(this.OTHER_BOOKMARK_ID, this.ROOT_DIR_NAME);
+        this.deleteAll(rootDirId);
 
-        const new_root_dir_id = await this.getDirId(BookmarkStore.OTHER_BOOKMARK_ID, BookmarkStore.ROOT_DIR_NAME);
+        const newRootDirId = await this.getDirId(this.OTHER_BOOKMARK_ID, this.ROOT_DIR_NAME);
         const links = await LinkDB.getAll();
         for (const link of links) {
-            await this.add(new_root_dir_id, link);
+            await this.add(newRootDirId, link);
         }
     }
 
     public static async syncToDB() {
         await LinkDB.deleteAll();
 
-        const root_dir_id = await this.getDirId(BookmarkStore.OTHER_BOOKMARK_ID, BookmarkStore.ROOT_DIR_NAME);
-        console.log('root_dir_id', root_dir_id);
-        const links = await this.getAllLinks(root_dir_id)
-        console.log('links', links);
+        const rootDirId = await this.getDirId(this.OTHER_BOOKMARK_ID, this.ROOT_DIR_NAME);
+        const links = await this.getAll(rootDirId)
         for (const link of links) {
             await LinkDB.add(link);
         }

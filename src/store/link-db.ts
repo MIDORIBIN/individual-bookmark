@@ -23,7 +23,7 @@ export class LinkDB {
         }
         links.push(targetLink);
         await this.setItem(links);
-        return Promise.resolve(targetLink);
+        return targetLink;
     }
 
     public static async get(url: string): Promise<LinkItem | undefined> {
