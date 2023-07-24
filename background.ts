@@ -15,6 +15,7 @@ const onStart = async () => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   console.log('on start');
   LinkDB.addOnChanged(() => BookmarkStore.syncFromDB());
+  LinkDB.addOnChanged(() => updateBadge());
 }
 onStart();
 
@@ -44,9 +45,24 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     return;
   }
   console.log('start onUpdated');
-  const url = tab.url ? tab.url : '';
+  updateBadge(tab.url, tabId)
+  console.log('end onUpdated');
+});
+
+// バッチの更新処理
+const updateBadge = async (url?: string, tabId?: number) => {
+  if (url === undefined || tabId === undefined) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab.url || '';
+    const tabId = tab.id || -1;
+    await refreshBadge(url, tabId);
+  } else {
+    await refreshBadge(url, tabId);
+  }
+}
+
+const refreshBadge = async (url: string, tabId: number) => {
   const link = await LinkDB.get(url);
   const badgeText = link === undefined ? '' : '✓';
   await chrome.action.setBadgeText({ text: badgeText, tabId });
-  console.log('end onUpdated');
-});
+}
